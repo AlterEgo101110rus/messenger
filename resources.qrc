@@ -1,0 +1,35 @@
+<RCC>
+    <qresource prefix="/avatars">
+        <file>Resources/Avatars/businessman.png</file>
+        <file>Resources/Avatars/businesswoman.png</file>
+        <file>Resources/Avatars/doctor_m.png</file>
+        <file>Resources/Avatars/doctor_w.png</file>
+        <file>Resources/Avatars/employee_m.png</file>
+        <file>Resources/Avatars/employee_w.png</file>
+        <file>Resources/Avatars/robot.png</file>
+        <file>Resources/Avatars/salesman.png</file>
+        <file>Resources/Avatars/saleswoman.png</file>
+        <file>Resources/Avatars/user_m.png</file>
+        <file>Resources/Avatars/user_w.png</file>
+    </qresource>
+    <qresource prefix="/backgrounds">
+        <file>Resources/Backgrounds/pattern.svg</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file>Resources/Icons/copy.svg</file>
+        <file>Resources/Icons/more.svg</file>
+        <file>Resources/Icons/plane.svg</file>
+        <file>Resources/Icons/search.svg</file>
+        <file>Resources/Icons/trash.svg</file>
+        <file>Resources/Icons/check.svg</file>
+        <file>Resources/Icons/check-double.svg</file>
+        <file>Resources/Icons/pin.svg</file>
+        <file>Resources/Icons/reply.svg</file>
+        <file>Resources/Icons/forward.svg</file>
+        <file>Resources/Icons/attach.svg</file>
+        <file>Resources/Icons/cross.svg</file>
+    </qresource>
+    <qresource prefix="/settings">
+        <file>Resources/Settings/Roboto-Regular.ttf</file>
+    </qresource>
+</RCC>
