@@ -17,9 +17,12 @@
 #include <QClipboard>
 #include <QScrollBar>
 #include <QListWidgetItem>
+#include <QDialog>
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
 #include <QGraphicsOpacityEffect>
+#include <QGraphicsBlurEffect>
+#include <QGraphicsDropShadowEffect>
 
 ChatWidget::ChatWidget(QWidget *parent)
     : QWidget(parent)
@@ -47,8 +50,6 @@ ChatWidget::ChatWidget(QWidget *parent)
         "QListWidget {"
         "background: transparent;"
         "border: none;"
-        "padding-bottom: 80px;" /* Это создаст пустое место внизу списка */
-        "padding-top: 40px;"
         "}"
         "QListWidget::item {"
         "background: transparent;"
@@ -60,6 +61,16 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     // Настройка скорости и плавности для колесика мыши
     listWidget->verticalScrollBar()->setSingleStep(10); // Размер одного "шага" в пикселях
+
+    m_topSpacerItem = new QListWidgetItem();
+    m_topSpacerItem->setFlags(Qt::NoItemFlags);
+    m_topSpacerItem->setData(Qt::UserRole, "spacer");
+    listWidget->addItem(m_topSpacerItem);
+
+    m_bottomSpacerItem = new QListWidgetItem();
+    m_bottomSpacerItem->setFlags(Qt::NoItemFlags);
+    m_bottomSpacerItem->setData(Qt::UserRole, "spacer");
+    listWidget->addItem(m_bottomSpacerItem);
 
     listWidget->verticalScrollBar()->setStyleSheet(
         "QScrollBar:vertical {"
@@ -89,6 +100,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     // Создаем панель ввода БЕЗ добавления в Layout
     inputBar = new QWidget(this);
     inputBar->setObjectName("floatingInputBar");
+    inputBar->setAttribute(Qt::WA_TranslucentBackground, true);
     // Делаем саму полоску прозрачной
     //inputBar->setStyleSheet("background: transparent;");
     /*inputBar->setStyleSheet(
@@ -97,8 +109,89 @@ ChatWidget::ChatWidget(QWidget *parent)
         "}"
         );*/
 
-    QHBoxLayout *inputLayout = new QHBoxLayout(inputBar);
-    inputLayout->setContentsMargins(20, 10, 20, 10); // Отступы от краев окна
+    inputBlurOverlay = new QWidget(this);
+    inputBlurOverlay->setObjectName("inputBlurOverlay");
+    inputBlurOverlay->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    inputBlurOverlay->setStyleSheet(
+        "QWidget#inputBlurOverlay {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "                              stop:0 rgba(70, 75, 160, 145),"
+        "                              stop:1 rgba(35, 35, 55, 190));"
+        "  border: 1px solid rgba(255, 255, 255, 45);"
+        "  border-top: 1px solid rgba(255, 255, 255, 80);"
+        "  border-radius: 24px;"
+        "}"
+        );
+
+    auto *inputBlurEffect = new QGraphicsBlurEffect(inputBlurOverlay);
+    inputBlurEffect->setBlurHints(QGraphicsBlurEffect::QualityHint);
+    inputBlurEffect->setBlurRadius(52);
+    inputBlurOverlay->setGraphicsEffect(inputBlurEffect);
+    inputBlurOverlay->lower();
+
+    QVBoxLayout *inputBarLayout = new QVBoxLayout(inputBar);
+    inputBarLayout->setContentsMargins(20, 8, 20, 16);
+    inputBarLayout->setSpacing(8);
+
+    replyPreviewBar = new QWidget(inputBar);
+    replyPreviewBar->setFixedHeight(48);
+    replyPreviewBar->hide();
+    replyPreviewBar->setStyleSheet(
+        "background: rgba(255, 255, 255, 0.88);"
+        "border: 1px solid rgba(78, 84, 200, 0.12);"
+        "border-radius: 16px;"
+        );
+
+    QHBoxLayout *replyPreviewLayout = new QHBoxLayout(replyPreviewBar);
+    replyPreviewLayout->setContentsMargins(12, 7, 8, 7);
+    replyPreviewLayout->setSpacing(10);
+
+    QWidget *replyAccent = new QWidget(replyPreviewBar);
+    replyAccent->setFixedSize(3, 28);
+    replyAccent->setStyleSheet("background: #4e54c8; border-radius: 1px;");
+    replyPreviewLayout->addWidget(replyAccent, 0, Qt::AlignVCenter);
+
+    QWidget *replyTextWidget = new QWidget(replyPreviewBar);
+    QVBoxLayout *replyTextLayout = new QVBoxLayout(replyTextWidget);
+    replyTextLayout->setContentsMargins(0, 0, 0, 0);
+    replyTextLayout->setSpacing(0);
+
+    QLabel *replyTitleLabel = new QLabel("Ответ на сообщение", replyTextWidget);
+    replyTitleLabel->setStyleSheet("color: rgba(0,0,0,0.48); font-size: 11px; font-weight: 700; background: transparent;");
+    replyTextLayout->addWidget(replyTitleLabel);
+
+    replyPreviewButton = new QPushButton(replyTextWidget);
+    replyPreviewButton->setFlat(true);
+    replyPreviewButton->setCursor(Qt::PointingHandCursor);
+    replyPreviewButton->setStyleSheet(
+        "QPushButton {"
+        "  text-align: left;"
+        "  border: none;"
+        "  background: transparent;"
+        "  color: #3942c0;"
+        "  font-size: 12px;"
+        "  font-weight: 600;"
+        "  padding: 0;"
+        "}"
+        "QPushButton:hover { color: #2f36aa; }"
+        );
+    replyTextLayout->addWidget(replyPreviewButton);
+    replyPreviewLayout->addWidget(replyTextWidget, 1);
+
+    replyCancelButton = new QPushButton(replyPreviewBar);
+    replyCancelButton->setFixedSize(28, 28);
+    replyCancelButton->setCursor(Qt::PointingHandCursor);
+    replyCancelButton->setIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#888"), 14)));
+    replyCancelButton->setIconSize(QSize(14, 14));
+    replyCancelButton->setStyleSheet(
+        "QPushButton { border: none; background: transparent; border-radius: 14px; }"
+        "QPushButton:hover { background: rgba(0,0,0,0.05); }"
+        );
+    replyPreviewLayout->addWidget(replyCancelButton, 0, Qt::AlignVCenter);
+
+    QWidget *inputRow = new QWidget(inputBar);
+    QHBoxLayout *inputLayout = new QHBoxLayout(inputRow);
+    inputLayout->setContentsMargins(0, 0, 0, 0);
     inputLayout->setSpacing(8);
 
     // --- КНОПКА СКРЕПКИ ---
@@ -155,7 +248,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     //textLayout->setContentsMargins(10, 0, 15, 0);
 
     // --- 3. ПОЛЕ ВВОДА (теперь QTextEdit) ---
-    QTextEdit *messageEdit = new QTextEdit();
+    messageEdit = new QTextEdit();
     messageEdit->setPlaceholderText("Сообщение...");
     messageEdit->setFrameStyle(QFrame::NoFrame);
     messageEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff); // Скрываем скролл
@@ -181,7 +274,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     textLayout->setContentsMargins(10, 5, 10, 8); // Нижний отступ (8) выровняет скрепку по линии текста
 
     // Кнопка отправки
-    QPushButton *sendButton = new QPushButton();
+    sendButton = new QPushButton();
     sendButton->setFixedSize(44, 44);
     sendButton->setCursor(Qt::PointingHandCursor); // Курсор-ручка при наведении
 
@@ -193,23 +286,20 @@ ChatWidget::ChatWidget(QWidget *parent)
     // Продвинутый стиль с эффектами
     sendButton->setStyleSheet(
         "QPushButton {"
-        // Градиент сверху вниз: от светлого оттенка к основному
         "  background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, "
-        "                                    stop:0 #6a71e6, stop:1 #4e54c8);"
+        "                                    stop:0 #858cf2, stop:1 #636ae8);"
         "  border-radius: 22px;"
         "  padding-right: 2px;"
         "  padding-top: 1px;"
-        "  border: none;"
         "  color: white;"
+        "  border: none;"
         "}"
         "QPushButton:hover {"
-        // Чуть более насыщенный градиент при наведении
         "  background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, "
-        "                                    stop:0 #5a61d6, stop:1 #4349ad);"
+        "                                    stop:0 #949bfb, stop:1 #7279f5);"
         "}"
         "QPushButton:pressed {"
-        // Темный плоский цвет для эффекта "вдавленности"
-        "  background-color: #3a3f96;"
+        "  background-color: #646be6;"
         "  padding-top: 4px;"
         "  padding-right: 2px;"
         "}"
@@ -219,7 +309,9 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     inputLayout->addWidget(textContainer);
     inputLayout->addWidget(sendButton, 0, Qt::AlignBottom);
-    inputLayout->setContentsMargins(20, 10, 20, 16); // Увеличьте нижний отступ, чтобы кнопка не прилипла к краю
+
+    inputBarLayout->addWidget(replyPreviewBar);
+    inputBarLayout->addWidget(inputRow);
 
     // Загрузка паттерна и остальное...
     pattern.load(QString(Backgrounds::PatternDefault));
@@ -244,18 +336,48 @@ ChatWidget::ChatWidget(QWidget *parent)
         QResizeEvent *re = new QResizeEvent(size(), size());
         this->resizeEvent(re);
     });
+    connect(replyPreviewButton, &QPushButton::clicked, this, [this]() {
+        if (m_pendingReplyMessageId != -1) {
+            scrollToMessage(m_pendingReplyMessageId);
+        }
+    });
+    connect(replyCancelButton, &QPushButton::clicked, this, &ChatWidget::clearPendingReply);
 
     // Убедитесь, что TopBar выше закрепа
     topBar->raise();
 
-    pinnedWidget->animateShow(60);
+    updateListContentInsets();
 
     this->ensurePolished();
 
     // --- Добавляем тестовые сообщения (чтобы проверить видимость) ---
-    addMessage("Тестовое сообщение", false);
-    addMessage("Бот MAXим: Привет!", true);
-    addMessage("привет", false);
+    MessageBubble::MessageData outgoingReply;
+    outgoingReply.text = "Да, вижу. Отвечаю прямо из нового bubble с reply-блоком.";
+    outgoingReply.type = MessageBubble::Reply;
+    outgoingReply.replyPreview = "Бот MAXим: Привет! Покажешь новые типы сообщений?";
+    outgoingReply.replyClickable = true;
+    outgoingReply.attachmentType = MessageBubble::PhotoAttachment;
+    outgoingReply.attachmentTitle = "Фотография";
+    outgoingReply.attachmentSubtitle = "Нажмите, чтобы открыть вложение";
+
+    MessageBubble::MessageData incomingForward;
+    incomingForward.text = "Вот пример пересланного сообщения с вложением под заголовком.";
+    incomingForward.type = MessageBubble::Forward;
+    incomingForward.forwardSource = "Канал MAX Design";
+    incomingForward.forwardSourceClickable = true;
+    incomingForward.attachmentType = MessageBubble::FileAttachment;
+    incomingForward.attachmentTitle = "Презентация.pdf";
+    incomingForward.attachmentSubtitle = "2,4 МБ • 12 слайдов";
+
+    MessageBubble::MessageData plainWithAttachment;
+    plainWithAttachment.text = "А это обычное сообщение, где вложение находится прямо над текстом.";
+    plainWithAttachment.attachmentType = MessageBubble::PollAttachment;
+    plainWithAttachment.attachmentTitle = "Опрос команды";
+    plainWithAttachment.attachmentSubtitle = "4 варианта ответа";
+
+    addMessage(outgoingReply, false);
+    addMessage(incomingForward, true);
+    addMessage(plainWithAttachment, false);
 
     // Сразу прокручиваем вниз, чтобы их увидели
     scrollToBottom();
@@ -269,14 +391,18 @@ ChatWidget::ChatWidget(QWidget *parent)
             messageEdit->setFixedHeight(newEditHeight);
 
             // Вычисляем новую высоту всей панели
-            int newBarHeight = newEditHeight + (70 - 35); // База 70 минус база эдита 35
+            int newBarHeight = newEditHeight + (70 - 35) + replyPreviewHeight();
             inputBar->setFixedHeight(newBarHeight);
 
             // ВАЖНО: Сразу пересчитываем позицию, чтобы не ждать resizeEvent
             inputBar->setGeometry(0, height() - newBarHeight, width(), newBarHeight);
+            if (inputBlurOverlay) {
+                inputBlurOverlay->setGeometry(0, height() - newBarHeight - 18, width(), newBarHeight + 36);
+                inputBlurOverlay->raise();
+                inputBar->raise();
+            }
 
-            // Обновляем отступы списка
-            listWidget->setStyleSheet(QString("QListWidget { background: transparent; border: none; padding-top: 65px; padding-bottom: %1px; }").arg(newBarHeight + 5));
+            updateListContentInsets(newBarHeight + 5);
         }
     });
 
@@ -287,11 +413,28 @@ ChatWidget::ChatWidget(QWidget *parent)
         QString text = messageEdit->toPlainText().trimmed();
 
         if (!text.isEmpty()) {
-            addMessage(text, false);
+            MessageBubble::MessageData outgoingData;
+            outgoingData.text = text;
+
+            if (m_pendingReplyMessageId != -1 && m_messageItems.contains(m_pendingReplyMessageId)) {
+                QListWidgetItem *targetItem = m_messageItems.value(m_pendingReplyMessageId);
+                outgoingData.type = MessageBubble::Reply;
+                outgoingData.replyToMessageId = m_pendingReplyMessageId;
+                outgoingData.replyClickable = true;
+                outgoingData.replyPreview = targetItem->data(Qt::UserRole + 2).toString();
+            }
+
+            addMessage(outgoingData, false);
             messageEdit->clear();
             messageEdit->setFixedHeight(35);
-            inputBar->setFixedHeight(70);
-            inputBar->move(0, height() - 70);
+            clearPendingReply();
+            inputBar->setFixedHeight(70 + replyPreviewHeight());
+            inputBar->move(0, height() - inputBar->height());
+            if (inputBlurOverlay) {
+                inputBlurOverlay->setGeometry(0, height() - 88, width(), 106);
+                inputBlurOverlay->raise();
+                inputBar->raise();
+            }
             scrollToBottom();
 
             // Имитация бота
@@ -316,6 +459,13 @@ ChatWidget::ChatWidget(QWidget *parent)
 
 void ChatWidget::addMessage(const QString &text, bool isIncoming)
 {
+    MessageBubble::MessageData data;
+    data.text = text;
+    addMessage(data, isIncoming);
+}
+
+void ChatWidget::addMessage(const MessageBubble::MessageData &data, bool isIncoming)
+{
     // 1. Если автор тот же, убираем хвостик у предыдущего пузыря
     if (m_lastMessageContainer && isIncoming == m_lastWasIncoming) {
         // Приводим указатель к нашему классу, чтобы вызвать setTail
@@ -325,7 +475,11 @@ void ChatWidget::addMessage(const QString &text, bool isIncoming)
     }
 
     // 2. Создаем элемент списка и контейнер
-    QListWidgetItem *item = new QListWidgetItem(listWidget);
+    QListWidgetItem *item = new QListWidgetItem();
+    item->setData(Qt::UserRole, "message");
+    int messageId = m_nextMessageId++;
+    item->setData(Qt::UserRole + 1, messageId);
+    item->setData(Qt::UserRole + 2, buildMessagePreview(data));
     QWidget *msgContainer = new QWidget();
     QHBoxLayout *msgLayout = new QHBoxLayout(msgContainer);
 
@@ -334,7 +488,12 @@ void ChatWidget::addMessage(const QString &text, bool isIncoming)
     msgLayout->setSpacing(0);
 
     // 3. Создаем наш кастомный пузырь
-    MessageBubble *bubble = new MessageBubble(text, isIncoming);
+    MessageBubble *bubble = new MessageBubble(data, isIncoming);
+    if (data.type == MessageBubble::Reply && data.replyToMessageId != -1) {
+        connect(bubble, &MessageBubble::replyClicked, this, [this, data]() {
+            scrollToMessage(data.replyToMessageId);
+        });
+    }
 
     // Запоминаем текущее сообщение как "последнее"
     m_lastMessageContainer = bubble;
@@ -355,8 +514,10 @@ void ChatWidget::addMessage(const QString &text, bool isIncoming)
 
     // 5. Передаем управление списку
     item->setSizeHint(msgContainer->sizeHint());
-    listWidget->addItem(item);
+    int insertRow = m_bottomSpacerItem ? listWidget->row(m_bottomSpacerItem) : listWidget->count();
+    listWidget->insertItem(insertRow, item);
     listWidget->setItemWidget(item, msgContainer);
+    m_messageItems.insert(messageId, item);
 
     // --- АНИМАЦИЯ ПРОЗРАЧНОСТИ ---
     QGraphicsOpacityEffect *opacityEffect = new QGraphicsOpacityEffect(msgContainer);
@@ -371,9 +532,11 @@ void ChatWidget::addMessage(const QString &text, bool isIncoming)
     opacityAnim->start(QAbstractAnimation::DeleteWhenStopped);
 
     // 6. Если у предыдущего итема изменился размер (из-за скрытия хвоста), обновляем его
-    if (listWidget->count() > 1) {
-        QListWidgetItem* prevItem = listWidget->item(listWidget->count() - 2);
-        prevItem->setSizeHint(listWidget->itemWidget(prevItem)->sizeHint());
+    if (insertRow > 1) {
+        QListWidgetItem *prevItem = listWidget->item(insertRow - 1);
+        if (prevItem && prevItem->data(Qt::UserRole).toString() == "message") {
+            prevItem->setSizeHint(listWidget->itemWidget(prevItem)->sizeHint());
+        }
     }
 
     scrollToBottom();
@@ -382,6 +545,7 @@ void ChatWidget::addMessage(const QString &text, bool isIncoming)
 void ChatWidget::showContextMenu(const QPoint &pos) {
     QListWidgetItem *item = listWidget->itemAt(pos);
     if (!item) return;
+    if (item->data(Qt::UserRole).toString() != "message") return;
 
     QMenu menu(this);
     // ПРИНУДИТЕЛЬНО ставим наш стиль для этого меню
@@ -459,7 +623,10 @@ void ChatWidget::showContextMenu(const QPoint &pos) {
     QAction *selectedAction = menu.exec(listWidget->mapToGlobal(pos));
 
     // 5. ЛОГИКА
-    if (selectedAction == copy) {
+    if (selectedAction == reply) {
+        beginReplyToItem(item);
+    }
+    else if (selectedAction == copy) {
         QWidget *container = listWidget->itemWidget(item);
         if (container) {
             // 1. Сначала ищем QTextEdit (наш новый формат сообщений)
@@ -486,6 +653,107 @@ void ChatWidget::showContextMenu(const QPoint &pos) {
     else if (selectedAction == remove) {
         animateItemRemoval(item);
     }
+}
+
+int ChatWidget::replyPreviewHeight() const {
+    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 48 : 0;
+}
+
+QString ChatWidget::buildMessagePreview(const MessageBubble::MessageData &data) const {
+    QString preview = data.text.simplified();
+    if (preview.isEmpty()) {
+        preview = data.attachmentTitle;
+    }
+
+    if (preview.length() > 72) {
+        preview = preview.left(69) + "...";
+    }
+
+    return preview;
+}
+
+void ChatWidget::beginReplyToItem(QListWidgetItem *item) {
+    if (!item) {
+        return;
+    }
+
+    m_pendingReplyMessageId = item->data(Qt::UserRole + 1).toInt();
+    if (replyPreviewButton) {
+        replyPreviewButton->setText(item->data(Qt::UserRole + 2).toString());
+    }
+
+    if (replyPreviewBar && !replyPreviewBar->isVisible()) {
+        replyPreviewBar->show();
+    }
+
+    int newBarHeight = messageEdit->height() + (70 - 35) + replyPreviewHeight();
+    inputBar->setFixedHeight(newBarHeight);
+    inputBar->setGeometry(0, height() - newBarHeight, width(), newBarHeight);
+
+    if (inputBlurOverlay) {
+        inputBlurOverlay->setGeometry(0, height() - newBarHeight - 18, width(), newBarHeight + 36);
+        inputBlurOverlay->raise();
+        inputBar->raise();
+    }
+
+    updateListContentInsets(newBarHeight + 5);
+    messageEdit->setFocus();
+}
+
+void ChatWidget::clearPendingReply() {
+    m_pendingReplyMessageId = -1;
+    if (replyPreviewBar) {
+        replyPreviewBar->hide();
+    }
+
+    int newBarHeight = messageEdit->height() + (70 - 35);
+    inputBar->setFixedHeight(newBarHeight);
+    inputBar->setGeometry(0, height() - newBarHeight, width(), newBarHeight);
+
+    if (inputBlurOverlay) {
+        inputBlurOverlay->setGeometry(0, height() - newBarHeight - 18, width(), newBarHeight + 36);
+        inputBlurOverlay->raise();
+        inputBar->raise();
+    }
+
+    updateListContentInsets(newBarHeight + 5);
+}
+
+void ChatWidget::scrollToMessage(int messageId) {
+    if (!m_messageItems.contains(messageId)) {
+        return;
+    }
+
+    QListWidgetItem *item = m_messageItems.value(messageId);
+    if (!item) {
+        return;
+    }
+
+    listWidget->scrollToItem(item, QAbstractItemView::PositionAtCenter);
+    highlightMessageItem(item);
+}
+
+void ChatWidget::highlightMessageItem(QListWidgetItem *item) {
+    QWidget *container = listWidget->itemWidget(item);
+    if (!container) {
+        return;
+    }
+
+    QPoint basePos = container->pos();
+    auto *rockAnim = new QPropertyAnimation(container, "pos", this);
+    rockAnim->setDuration(520);
+    rockAnim->setEasingCurve(QEasingCurve::InOutSine);
+    rockAnim->setKeyValueAt(0.0, basePos);
+    rockAnim->setKeyValueAt(0.18, basePos + QPoint(10, 0));
+    rockAnim->setKeyValueAt(0.36, basePos + QPoint(-8, 0));
+    rockAnim->setKeyValueAt(0.56, basePos + QPoint(6, 0));
+    rockAnim->setKeyValueAt(0.76, basePos + QPoint(-4, 0));
+    rockAnim->setKeyValueAt(1.0, basePos);
+    connect(rockAnim, &QPropertyAnimation::finished, this, [container, basePos, rockAnim]() {
+        container->move(basePos);
+        rockAnim->deleteLater();
+    });
+    rockAnim->start();
 }
 
 // --- ГЛАВНЫЙ МЕТОД УПРАВЛЕНИЯ СТАТУСОМ ---
@@ -520,7 +788,105 @@ void ChatWidget::animateTyping() {
 }
 
 void ChatWidget::scrollToBottom() {
+    if (m_bottomSpacerItem) {
+        int topInset = m_topSpacerItem ? m_topSpacerItem->sizeHint().height() : 0;
+        int bottomInset = m_bottomSpacerItem->sizeHint().height();
+        int messageContentHeight = 0;
+
+        for (int i = 0; i < listWidget->count(); ++i) {
+            QListWidgetItem *item = listWidget->item(i);
+            if (!item || item->data(Qt::UserRole).toString() != "message") {
+                continue;
+            }
+
+            messageContentHeight += item->sizeHint().height();
+        }
+
+        int availableMessageArea = listWidget->viewport()->height() - topInset - bottomInset;
+        if (messageContentHeight <= availableMessageArea) {
+            listWidget->verticalScrollBar()->setValue(0);
+            return;
+        }
+
+        listWidget->scrollToItem(m_bottomSpacerItem, QAbstractItemView::PositionAtBottom);
+        return;
+    }
+
     listWidget->scrollToBottom();
+}
+
+void ChatWidget::updateFirstMessageOffset() {
+    if (!listWidget) {
+        return;
+    }
+
+    int topInset = m_topSpacerItem ? m_topSpacerItem->sizeHint().height() : 0;
+    int bottomInset = m_bottomSpacerItem ? m_bottomSpacerItem->sizeHint().height() : 0;
+    int messageContentHeight = 0;
+
+    for (int i = 0; i < listWidget->count(); ++i) {
+        QListWidgetItem *item = listWidget->item(i);
+        if (!item || item->data(Qt::UserRole).toString() != "message") {
+            continue;
+        }
+
+        messageContentHeight += item->sizeHint().height();
+    }
+
+    bool pinReserved = pinnedWidget && (pinnedWidget->isVisible() || !m_pinnedWidgetAnimated);
+    bool shouldLowerFirstMessage = pinReserved
+                                   && messageContentHeight <= (listWidget->viewport()->height() - topInset - bottomInset);
+
+    bool firstMessageHandled = false;
+    for (int i = 0; i < listWidget->count(); ++i) {
+        QListWidgetItem *item = listWidget->item(i);
+        if (!item || item->data(Qt::UserRole).toString() != "message") {
+            continue;
+        }
+
+        QWidget *container = listWidget->itemWidget(item);
+        if (!container) {
+            continue;
+        }
+
+        if (auto *layout = qobject_cast<QHBoxLayout *>(container->layout())) {
+            QMargins margins = layout->contentsMargins();
+            margins.setTop(!firstMessageHandled && shouldLowerFirstMessage ? 57 : 2);
+            layout->setContentsMargins(margins);
+            item->setSizeHint(container->sizeHint());
+        }
+
+        firstMessageHandled = true;
+    }
+}
+
+void ChatWidget::updateListContentInsets(int bottomInsetOverride) {
+    int topInset = 65;
+    if (pinnedWidget && (pinnedWidget->isVisible() || !m_pinnedWidgetAnimated)) {
+        topInset += 55;
+    }
+
+    int bottomInset = bottomInsetOverride >= 0 ? bottomInsetOverride : inputBar->height() + 5;
+    bottomInset += 24;
+    if (bottomInset < 75) {
+        bottomInset = 75;
+    }
+
+    if (m_topSpacerItem) {
+        m_topSpacerItem->setSizeHint(QSize(0, topInset));
+    }
+
+    if (m_bottomSpacerItem) {
+        m_bottomSpacerItem->setSizeHint(QSize(0, bottomInset));
+    }
+
+    if (listWidget) {
+        listWidget->doItemsLayout();
+        listWidget->update();
+        listWidget->viewport()->update();
+    }
+
+    updateFirstMessageOffset();
 }
 
 void ChatWidget::topBarCreate()
@@ -695,6 +1061,12 @@ void ChatWidget::animateItemRemoval(QListWidgetItem *item) {
     connect(group, &QParallelAnimationGroup::finished, this, [this, item, group]() {
         int row = listWidget->row(item);
         if (row != -1) {
+            int removedMessageId = item->data(Qt::UserRole + 1).toInt();
+            m_messageItems.remove(removedMessageId);
+            if (m_pendingReplyMessageId == removedMessageId) {
+                clearPendingReply();
+            }
+
             // 1. Физически удаляем сообщение
             delete listWidget->takeItem(row);
 
@@ -725,14 +1097,111 @@ void ChatWidget::animateItemRemoval(QListWidgetItem *item) {
 }
 
 void ChatWidget::onUnpinClicked() {
-    QMessageBox msg(this);
-    msg.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
-    msg.setText("Хотите открепить это сообщение?");
-    QPushButton *yes = msg.addButton("Открепить", QMessageBox::AcceptRole);
-    msg.addButton("Отмена", QMessageBox::RejectRole);
+    QDialog dialog(this);
+    dialog.setModal(true);
+    dialog.setAttribute(Qt::WA_StyledBackground, true);
+    dialog.setAttribute(Qt::WA_TranslucentBackground, true);
+    dialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
 
-    msg.exec();
-    if (msg.clickedButton() == yes) {
+    auto *outerLayout = new QVBoxLayout(&dialog);
+    outerLayout->setContentsMargins(24, 24, 24, 24);
+
+    auto *card = new QWidget(&dialog);
+    card->setObjectName("unpinDialogCard");
+    auto *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(24, 24, 24, 20);
+    cardLayout->setSpacing(12);
+
+    auto *titleLabel = new QLabel("Открепить сообщение", card);
+    titleLabel->setObjectName("unpinDialogTitle");
+    titleLabel->setWordWrap(true);
+    QFont titleFont("Roboto", 20, QFont::Bold);
+    titleFont.setStyleStrategy(QFont::PreferAntialias);
+    titleLabel->setFont(titleFont);
+
+    auto *questionLabel = new QLabel("Хотите открепить сообщение?", card);
+    questionLabel->setObjectName("unpinDialogQuestion");
+    questionLabel->setWordWrap(true);
+    QFont questionFont("Roboto", 14, QFont::Normal);
+    questionFont.setStyleStrategy(QFont::PreferAntialias);
+    questionLabel->setFont(questionFont);
+
+    auto *buttonLayout = new QHBoxLayout();
+    buttonLayout->setContentsMargins(0, 8, 0, 0);
+    buttonLayout->setSpacing(12);
+
+    QPushButton *cancel = new QPushButton("Отмена", card);
+    QPushButton *yes = new QPushButton("Открепить", card);
+    yes->setObjectName("unpinConfirmButton");
+
+    QFont buttonFont("Roboto", 15, QFont::DemiBold);
+    buttonFont.setStyleStrategy(QFont::PreferAntialias);
+    cancel->setFont(buttonFont);
+    yes->setFont(buttonFont);
+
+    buttonLayout->addWidget(cancel);
+    buttonLayout->addWidget(yes);
+
+    cardLayout->addWidget(titleLabel);
+    cardLayout->addWidget(questionLabel);
+    cardLayout->addLayout(buttonLayout);
+    outerLayout->addWidget(card);
+
+    dialog.setStyleSheet(
+        "QDialog { background: transparent; }"
+        "QWidget#unpinDialogCard {"
+        "  background-color: white;"
+        "  border: 1px solid rgba(78, 84, 200, 0.10);"
+        "  border-radius: 24px;"
+        "}"
+        "QLabel#unpinDialogTitle {"
+        "  color: #1f2233;"
+        "  background: transparent;"
+        "}"
+        "QLabel#unpinDialogQuestion {"
+        "  color: #5f6475;"
+        "  background: transparent;"
+        "}"
+        "QPushButton {"
+        "  background: white;"
+        "  border: none;"
+        "  border-radius: 14px;"
+        "  color: #4e54c8;"
+        "  padding: 12px 18px;"
+        "  min-width: 132px;"
+        "}"
+        "QPushButton:hover {"
+        "  background: #f6f7ff;"
+        "}"
+        "QPushButton:pressed {"
+        "  background: #eef0ff;"
+        "}"
+        "QPushButton#unpinConfirmButton {"
+        "  color: #e14b5a;"
+        "}"
+        "QPushButton#unpinConfirmButton:hover {"
+        "  background: #fff1f3;"
+        "}"
+        "QPushButton#unpinConfirmButton:pressed {"
+        "  background: #ffe4e8;"
+        "}"
+        );
+
+    connect(cancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    connect(yes, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    for (QPushButton *button : {cancel, yes}) {
+        auto *shadow = new QGraphicsDropShadowEffect(button);
+        shadow->setBlurRadius(0);
+        shadow->setOffset(0, 0);
+        shadow->setColor(Qt::transparent);
+        button->setGraphicsEffect(shadow);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setProperty("dialogHoverShadow", true);
+        button->installEventFilter(this);
+    }
+
+    if (dialog.exec() == QDialog::Accepted) {
         pinnedWidget->animateHide(60); // 60 - высота вашего TopBar
     }
 }
@@ -754,6 +1223,21 @@ void ChatWidget::paintEvent(QPaintEvent *event) {
 
     // 3. Вызов базы (если нужно)
     // QWidget::paintEvent(event);
+}
+
+void ChatWidget::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+
+    if (m_initialLayoutApplied) {
+        return;
+    }
+
+    m_initialLayoutApplied = true;
+    QTimer::singleShot(0, this, [this]() {
+        QResizeEvent initialResize(size(), size());
+        resizeEvent(&initialResize);
+        scrollToBottom();
+    });
 }
 
 /*void ChatWidget::resizeEvent(QResizeEvent *event) {
@@ -829,39 +1313,37 @@ void ChatWidget::resizeEvent(QResizeEvent *event) {
     int currentInputHeight = inputBar->height();
     if (currentInputHeight < 70) currentInputHeight = 70; // Страховка
 
-    // Рассчитываем начальный отступ для списка (сразу под топ-баром)
-    int listTopOffset = topHeight + 5;
-
     // 2. ВЕРХНЯЯ ПАНЕЛЬ (Top Bar)
     topBar->setGeometry(0, 0, width(), topHeight);
 
     // 3. ЗАКРЕПЛЕННОЕ СООБЩЕНИЕ (Pinned Message)
     // Размещаем его строго между топ-баром и списком
-    if (pinnedWidget && pinnedWidget->isVisible()) {
+    if (pinnedWidget && !m_pinnedWidgetAnimated && width() > (sidePadding * 2)) {
+        m_pinnedWidgetAnimated = true;
+        pinnedWidget->setGeometry(sidePadding, topHeight + 5, width() - (sidePadding * 2), 50);
+        pinnedWidget->animateShow(topHeight);
+        pinnedWidget->raise();
+
+    } else if (pinnedWidget && pinnedWidget->isVisible()) {
         int pWidth = width() - (sidePadding * 2);
         // Позиция: X=20, Y=65 (сразу под топ-баром), ширина = окно - 40
         pinnedWidget->setGeometry(sidePadding, topHeight + 5, pWidth, 50);
         pinnedWidget->raise();
-
-        // Увеличиваем отступ списка, так как место занято закрепом
-        listTopOffset += 55;
     }
 
     // 4. НИЖНЯЯ ПАНЕЛЬ (Input Bar)
     // Всегда прижата к самому низу окна
     inputBar->setGeometry(0, height() - currentInputHeight, width(), currentInputHeight);
+    if (inputBlurOverlay) {
+        inputBlurOverlay->setGeometry(0, height() - currentInputHeight - 18, width(), currentInputHeight + 36);
+        inputBlurOverlay->raise();
+        inputBar->raise();
+    }
 
     // 5. СПИСОК СООБЩЕНИЙ (List Widget)
     // Занимает все окно, но контент (сообщения) ограничен падингами
     listWidget->setGeometry(0, 0, width(), height());
-
-    listWidget->setStyleSheet(QString(
-                                  "QListWidget {"
-                                  "  background: transparent; border: none;"
-                                  "  padding-top: %1px;"      // Динамический отступ сверху (топ-бар + закреп)
-                                  "  padding-bottom: %2px;"   // Динамический отступ снизу (инпут-бар)
-                                  "}"
-                                  ).arg(listTopOffset).arg(currentInputHeight + 5));
+    updateListContentInsets(currentInputHeight + 5);
 }
 
 
@@ -875,5 +1357,25 @@ bool ChatWidget::eventFilter(QObject *obj, QEvent *event) {
             }
         }
     }
+
+    if (obj->property("dialogHoverShadow").toBool()) {
+        if (auto *button = qobject_cast<QPushButton *>(obj)) {
+            if (auto *shadow = qobject_cast<QGraphicsDropShadowEffect *>(button->graphicsEffect())) {
+                if (event->type() == QEvent::Enter) {
+                    QColor shadowColor = button->objectName() == "unpinConfirmButton"
+                                             ? QColor(225, 75, 90, 70)
+                                             : QColor(78, 84, 200, 55);
+                    shadow->setBlurRadius(24);
+                    shadow->setOffset(0, 8);
+                    shadow->setColor(shadowColor);
+                } else if (event->type() == QEvent::Leave) {
+                    shadow->setBlurRadius(0);
+                    shadow->setOffset(0, 0);
+                    shadow->setColor(Qt::transparent);
+                }
+            }
+        }
+    }
+
     return QWidget::eventFilter(obj, event);
 }
