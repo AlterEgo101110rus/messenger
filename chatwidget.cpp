@@ -21,7 +21,6 @@
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
 #include <QGraphicsOpacityEffect>
-#include <QGraphicsBlurEffect>
 #include <QGraphicsDropShadowEffect>
 
 ChatWidget::ChatWidget(QWidget *parent)
@@ -114,31 +113,25 @@ ChatWidget::ChatWidget(QWidget *parent)
     inputBlurOverlay->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     inputBlurOverlay->setStyleSheet(
         "QWidget#inputBlurOverlay {"
-        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-        "                              stop:0 rgba(70, 75, 160, 145),"
-        "                              stop:1 rgba(35, 35, 55, 190));"
+        "background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "                            stop:0 rgba(70, 75, 160, 145),"
+        "                            stop:1 rgba(35, 35, 55, 190));"
         "  border: 1px solid rgba(255, 255, 255, 45);"
         "  border-top: 1px solid rgba(255, 255, 255, 80);"
         "  border-radius: 24px;"
         "}"
         );
-
-    auto *inputBlurEffect = new QGraphicsBlurEffect(inputBlurOverlay);
-    inputBlurEffect->setBlurHints(QGraphicsBlurEffect::QualityHint);
-    inputBlurEffect->setBlurRadius(52);
-    inputBlurOverlay->setGraphicsEffect(inputBlurEffect);
     inputBlurOverlay->lower();
 
     QVBoxLayout *inputBarLayout = new QVBoxLayout(inputBar);
     inputBarLayout->setContentsMargins(20, 8, 20, 16);
-    inputBarLayout->setSpacing(8);
+    inputBarLayout->setSpacing(18);
 
     replyPreviewBar = new QWidget(inputBar);
     replyPreviewBar->setFixedHeight(48);
     replyPreviewBar->hide();
     replyPreviewBar->setStyleSheet(
         "background: rgba(255, 255, 255, 0.88);"
-        "border: 1px solid rgba(78, 84, 200, 0.12);"
         "border-radius: 16px;"
         );
 
@@ -152,6 +145,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     replyPreviewLayout->addWidget(replyAccent, 0, Qt::AlignVCenter);
 
     QWidget *replyTextWidget = new QWidget(replyPreviewBar);
+    replyTextWidget->setAttribute(Qt::WA_TranslucentBackground);
     QVBoxLayout *replyTextLayout = new QVBoxLayout(replyTextWidget);
     replyTextLayout->setContentsMargins(0, 0, 0, 0);
     replyTextLayout->setSpacing(0);
@@ -656,7 +650,7 @@ void ChatWidget::showContextMenu(const QPoint &pos) {
 }
 
 int ChatWidget::replyPreviewHeight() const {
-    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 48 : 0;
+    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 58 : 0;
 }
 
 QString ChatWidget::buildMessagePreview(const MessageBubble::MessageData &data) const {
@@ -739,7 +733,12 @@ void ChatWidget::highlightMessageItem(QListWidgetItem *item) {
         return;
     }
 
+    if (container->property("replyRocking").toBool()) {
+        return;
+    }
+
     QPoint basePos = container->pos();
+    container->setProperty("replyRocking", true);
     auto *rockAnim = new QPropertyAnimation(container, "pos", this);
     rockAnim->setDuration(520);
     rockAnim->setEasingCurve(QEasingCurve::InOutSine);
@@ -751,6 +750,7 @@ void ChatWidget::highlightMessageItem(QListWidgetItem *item) {
     rockAnim->setKeyValueAt(1.0, basePos);
     connect(rockAnim, &QPropertyAnimation::finished, this, [container, basePos, rockAnim]() {
         container->move(basePos);
+        container->setProperty("replyRocking", false);
         rockAnim->deleteLater();
     });
     rockAnim->start();
