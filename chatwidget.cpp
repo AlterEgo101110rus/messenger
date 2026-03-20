@@ -269,23 +269,20 @@ ChatWidget::ChatWidget(QWidget *parent)
     // Продвинутый стиль с эффектами
     sendButton->setStyleSheet(
         "QPushButton {"
-        // Градиент сверху вниз: от светлого оттенка к основному
         "  background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, "
-        "                                    stop:0 #6a71e6, stop:1 #4e54c8);"
+        "                                    stop:0 #858cf2, stop:1 #636ae8);"
         "  border-radius: 22px;"
         "  padding-right: 2px;"
         "  padding-top: 1px;"
-        "  border: none;"
         "  color: white;"
+        "  border: none;"
         "}"
         "QPushButton:hover {"
-        // Чуть более насыщенный градиент при наведении
         "  background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, "
-        "                                    stop:0 #5a61d6, stop:1 #4349ad);"
+        "                                    stop:0 #949bfb, stop:1 #7279f5);"
         "}"
         "QPushButton:pressed {"
-        // Темный плоский цвет для эффекта "вдавленности"
-        "  background-color: #3a3f96;"
+        "  background-color: #646be6;"
         "  padding-top: 4px;"
         "  padding-right: 2px;"
         "}"
