@@ -134,17 +134,33 @@ ChatWidget::ChatWidget(QWidget *parent)
     inputBarLayout->setSpacing(8);
 
     replyPreviewBar = new QWidget(inputBar);
+    replyPreviewBar->setFixedHeight(48);
     replyPreviewBar->hide();
     replyPreviewBar->setStyleSheet(
-        "background: rgba(78, 84, 200, 0.10);"
-        "border-radius: 14px;"
+        "background: rgba(255, 255, 255, 0.88);"
+        "border: 1px solid rgba(78, 84, 200, 0.12);"
+        "border-radius: 16px;"
         );
 
     QHBoxLayout *replyPreviewLayout = new QHBoxLayout(replyPreviewBar);
-    replyPreviewLayout->setContentsMargins(12, 8, 10, 8);
-    replyPreviewLayout->setSpacing(8);
+    replyPreviewLayout->setContentsMargins(12, 7, 8, 7);
+    replyPreviewLayout->setSpacing(10);
 
-    replyPreviewButton = new QPushButton(replyPreviewBar);
+    QWidget *replyAccent = new QWidget(replyPreviewBar);
+    replyAccent->setFixedSize(3, 28);
+    replyAccent->setStyleSheet("background: #4e54c8; border-radius: 1px;");
+    replyPreviewLayout->addWidget(replyAccent, 0, Qt::AlignVCenter);
+
+    QWidget *replyTextWidget = new QWidget(replyPreviewBar);
+    QVBoxLayout *replyTextLayout = new QVBoxLayout(replyTextWidget);
+    replyTextLayout->setContentsMargins(0, 0, 0, 0);
+    replyTextLayout->setSpacing(0);
+
+    QLabel *replyTitleLabel = new QLabel("Ответ на сообщение", replyTextWidget);
+    replyTitleLabel->setStyleSheet("color: rgba(0,0,0,0.48); font-size: 11px; font-weight: 700; background: transparent;");
+    replyTextLayout->addWidget(replyTitleLabel);
+
+    replyPreviewButton = new QPushButton(replyTextWidget);
     replyPreviewButton->setFlat(true);
     replyPreviewButton->setCursor(Qt::PointingHandCursor);
     replyPreviewButton->setStyleSheet(
@@ -159,18 +175,19 @@ ChatWidget::ChatWidget(QWidget *parent)
         "}"
         "QPushButton:hover { color: #2f36aa; }"
         );
-    replyPreviewLayout->addWidget(replyPreviewButton, 1);
+    replyTextLayout->addWidget(replyPreviewButton);
+    replyPreviewLayout->addWidget(replyTextWidget, 1);
 
     replyCancelButton = new QPushButton(replyPreviewBar);
-    replyCancelButton->setFixedSize(24, 24);
+    replyCancelButton->setFixedSize(28, 28);
     replyCancelButton->setCursor(Qt::PointingHandCursor);
-    replyCancelButton->setIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#666"), 14)));
+    replyCancelButton->setIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#888"), 14)));
     replyCancelButton->setIconSize(QSize(14, 14));
     replyCancelButton->setStyleSheet(
-        "QPushButton { border: none; background: transparent; border-radius: 12px; }"
+        "QPushButton { border: none; background: transparent; border-radius: 14px; }"
         "QPushButton:hover { background: rgba(0,0,0,0.05); }"
         );
-    replyPreviewLayout->addWidget(replyCancelButton, 0, Qt::AlignTop);
+    replyPreviewLayout->addWidget(replyCancelButton, 0, Qt::AlignVCenter);
 
     QWidget *inputRow = new QWidget(inputBar);
     QHBoxLayout *inputLayout = new QHBoxLayout(inputRow);
@@ -639,7 +656,7 @@ void ChatWidget::showContextMenu(const QPoint &pos) {
 }
 
 int ChatWidget::replyPreviewHeight() const {
-    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 40 : 0;
+    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 48 : 0;
 }
 
 QString ChatWidget::buildMessagePreview(const MessageBubble::MessageData &data) const {
@@ -722,30 +739,21 @@ void ChatWidget::highlightMessageItem(QListWidgetItem *item) {
         return;
     }
 
-    auto *shadow = new QGraphicsDropShadowEffect(container);
-    shadow->setOffset(0, 0);
-    shadow->setBlurRadius(0);
-    shadow->setColor(Qt::transparent);
-    container->setGraphicsEffect(shadow);
-
-    auto *colorAnim = new QPropertyAnimation(shadow, "color", this);
-    colorAnim->setDuration(900);
-    colorAnim->setStartValue(QColor(78, 84, 200, 110));
-    colorAnim->setEndValue(QColor(78, 84, 200, 0));
-
-    auto *blurAnim = new QPropertyAnimation(shadow, "blurRadius", this);
-    blurAnim->setDuration(900);
-    blurAnim->setStartValue(34.0);
-    blurAnim->setEndValue(0.0);
-
-    auto *group = new QParallelAnimationGroup(this);
-    group->addAnimation(colorAnim);
-    group->addAnimation(blurAnim);
-    connect(group, &QParallelAnimationGroup::finished, this, [container, group]() {
-        container->setGraphicsEffect(nullptr);
-        group->deleteLater();
+    QPoint basePos = container->pos();
+    auto *rockAnim = new QPropertyAnimation(container, "pos", this);
+    rockAnim->setDuration(520);
+    rockAnim->setEasingCurve(QEasingCurve::InOutSine);
+    rockAnim->setKeyValueAt(0.0, basePos);
+    rockAnim->setKeyValueAt(0.18, basePos + QPoint(10, 0));
+    rockAnim->setKeyValueAt(0.36, basePos + QPoint(-8, 0));
+    rockAnim->setKeyValueAt(0.56, basePos + QPoint(6, 0));
+    rockAnim->setKeyValueAt(0.76, basePos + QPoint(-4, 0));
+    rockAnim->setKeyValueAt(1.0, basePos);
+    connect(rockAnim, &QPropertyAnimation::finished, this, [container, basePos, rockAnim]() {
+        container->move(basePos);
+        rockAnim->deleteLater();
     });
-    group->start();
+    rockAnim->start();
 }
 
 // --- ГЛАВНЫЙ МЕТОД УПРАВЛЕНИЯ СТАТУСОМ ---
