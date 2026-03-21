@@ -121,11 +121,13 @@ QWidget *MessageBubble::createForwardHeader(const MessageData &data) {
     layout->setSpacing(1);
 
     QLabel *caption = new QLabel("Переслано от", forwardWidget);
-    caption->setStyleSheet("color: rgba(0,0,0,0.45); font-size: 11px; font-weight: 600; background: transparent;");
+    caption->setFont(QFont("Roboto", 11, QFont::Normal));
+    caption->setStyleSheet("color: rgba(0,0,0,0.45); background: transparent;");
     layout->addWidget(caption);
 
     QPushButton *sourceButton = new QPushButton(data.forwardSource, forwardWidget);
     sourceButton->setFlat(true);
+    sourceButton->setFont(QFont("Roboto", 11, QFont::Normal));
     sourceButton->setCursor(data.forwardSourceClickable ? Qt::PointingHandCursor : Qt::ArrowCursor);
     sourceButton->setEnabled(data.forwardSourceClickable);
     sourceButton->setStyleSheet(
@@ -133,13 +135,11 @@ QWidget *MessageBubble::createForwardHeader(const MessageData &data) {
         "  text-align: left;"
         "  border: none;"
         "  background: transparent;"
-        "  color: #4e54c8;"
-        "  font-size: 13px;"
-        "  font-weight: 700;"
+        "  color: #3942c0;"
         "  padding: 0;"
         "}"
         "QPushButton:disabled { color: #4e54c8; }"
-        "QPushButton:hover:!disabled { color: #3c42aa; }"
+        "QPushButton:hover:!disabled { color: #2e05a8; }"
         );
     connect(sourceButton, &QPushButton::clicked, this, &MessageBubble::forwardSourceClicked);
     layout->addWidget(sourceButton);
@@ -163,14 +163,13 @@ QWidget *MessageBubble::createAttachmentWidget(const MessageData &data) {
     layout->setSpacing(10);
 
     QLabel *badge = new QLabel(attachmentWidget);
-    badge->setFixedSize(42, 42);
+    badge->setFixedSize(48, 48);
+    badge->setFont(QFont("Roboto", 10, QFont::Medium));
     badge->setAlignment(Qt::AlignCenter);
     badge->setStyleSheet(
         "background: rgba(78, 84, 200, 0.14);"
         "border-radius: 12px;"
         "color: #4e54c8;"
-        "font-size: 11px;"
-        "font-weight: 700;"
         );
 
     QString badgeText = "Файл";
@@ -185,12 +184,13 @@ QWidget *MessageBubble::createAttachmentWidget(const MessageData &data) {
     layout->addWidget(badge);
 
     QVBoxLayout *textLayout = new QVBoxLayout();
-    textLayout->setContentsMargins(0, 0, 0, 0);
-    textLayout->setSpacing(2);
+    textLayout->setContentsMargins(0, 4, 0, 4);
+    textLayout->setSpacing(0);
 
     QString title = data.attachmentTitle.isEmpty() ? badgeText : data.attachmentTitle;
     QLabel *titleLabel = new QLabel(title, attachmentWidget);
-    titleLabel->setStyleSheet("color: #222; font-size: 13px; font-weight: 700; background: transparent;");
+    titleLabel->setFont(QFont("Roboto", 12, QFont::Medium));
+    titleLabel->setStyleSheet("color: #222; background: transparent;");
     textLayout->addWidget(titleLabel);
 
     QString subtitleText = data.attachmentSubtitle;
@@ -200,6 +200,7 @@ QWidget *MessageBubble::createAttachmentWidget(const MessageData &data) {
 
     QPushButton *subtitleButton = new QPushButton(subtitleText, attachmentWidget);
     subtitleButton->setFlat(true);
+    subtitleButton->setFont(QFont("Roboto", 11, QFont::Normal));
     subtitleButton->setCursor(Qt::PointingHandCursor);
     subtitleButton->setStyleSheet(
         "QPushButton {"
@@ -207,7 +208,6 @@ QWidget *MessageBubble::createAttachmentWidget(const MessageData &data) {
         "  border: none;"
         "  background: transparent;"
         "  color: rgba(0,0,0,0.55);"
-        "  font-size: 12px;"
         "  padding: 0;"
         "}"
         "QPushButton:hover { color: #4e54c8; }"

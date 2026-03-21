@@ -164,7 +164,7 @@ ChatWidget::ChatWidget(QWidget *parent)
         "  text-align: left;"
         "  border: none;"
         "  background: transparent;"
-        "  color: #3942c0;"
+        "  color: #4e54c8;"
         "  padding: 0;"
         "}"
         "QPushButton:hover { color: #2e05a8; }"
@@ -474,11 +474,9 @@ void ChatWidget::addMessage(const MessageBubble::MessageData &data, bool isIncom
     int messageId = m_nextMessageId++;
     item->setData(Qt::UserRole + 1, messageId);
     item->setData(Qt::UserRole + 2, buildMessagePreview(data));
+
     QWidget *msgContainer = new QWidget();
     QHBoxLayout *msgLayout = new QHBoxLayout(msgContainer);
-
-    // Устанавливаем минимальные отступы между сообщениями в группе
-    msgLayout->setContentsMargins(10, 2, 10, 2);
     msgLayout->setSpacing(0);
 
     // 3. Создаем наш кастомный пузырь
@@ -489,22 +487,53 @@ void ChatWidget::addMessage(const MessageBubble::MessageData &data, bool isIncom
         });
     }
 
-    // Запоминаем текущее сообщение как "последнее"
-    m_lastMessageContainer = bubble;
-    m_lastWasIncoming = isIncoming;
+    QWidget *prevContainer;
+    QHBoxLayout *prevLayout;
+
+    if (m_lastMessageContainer) {
+        qDebug() << "m_lastMessageContainer";
+        prevContainer = m_lastMessageContainer->parentWidget();
+        prevLayout = qobject_cast<QHBoxLayout *>(prevContainer ? prevContainer->layout() : nullptr);
+    }
 
     // 4. Размещаем пузырь в зависимости от того, входящее оно или исходящее
     if (isIncoming) {
         msgLayout->addWidget(bubble);
         msgLayout->addStretch();
         // Оставляем место справа, чтобы пузырь не растягивался на всю ширину
-        msgLayout->setContentsMargins(10, 2, 80, 2);
+        if (m_lastMessageContainer) {
+            if (isIncoming == m_lastWasIncoming) {
+                msgLayout->setContentsMargins(10, 1, 80, 1);
+            } else {
+                int left, top, right, bottom;
+                prevLayout->getContentsMargins(&left, &top, &right, &bottom);
+                prevLayout->setContentsMargins(left, top, right, 6);
+                msgLayout->setContentsMargins(10, 6, 80, 1);
+            }
+        } else {
+            msgLayout->setContentsMargins(10, 1, 80, 1);
+        }
     } else {
         msgLayout->addStretch();
         msgLayout->addWidget(bubble);
         // Оставляем место слева
-        msgLayout->setContentsMargins(80, 2, 10, 2);
+        if (m_lastMessageContainer) {
+            if (isIncoming == m_lastWasIncoming) {
+                msgLayout->setContentsMargins(80, 1, 10, 1);
+            } else {
+                int left, top, right, bottom;
+                prevLayout->getContentsMargins(&left, &top, &right, &bottom);
+                prevLayout->setContentsMargins(left, top, right, 6);
+                msgLayout->setContentsMargins(80, 6, 10, 1);
+            }
+        } else {
+            msgLayout->setContentsMargins(80, 1, 10, 1);
+        }
     }
+
+    // Запоминаем текущее сообщение как "последнее"
+    m_lastMessageContainer = bubble;
+    m_lastWasIncoming = isIncoming;
 
     // 5. Передаем управление списку
     item->setSizeHint(msgContainer->sizeHint());
@@ -522,7 +551,6 @@ void ChatWidget::addMessage(const MessageBubble::MessageData &data, bool isIncom
     opacityAnim->setStartValue(0.0);
     opacityAnim->setEndValue(1.0);
     opacityAnim->setEasingCurve(QEasingCurve::OutCubic);
-
     opacityAnim->start(QAbstractAnimation::DeleteWhenStopped);
 
     // 6. Если у предыдущего итема изменился размер (из-за скрытия хвоста), обновляем его
@@ -769,10 +797,12 @@ void ChatWidget::setChatStatus(ChatStatus status) {
         m_typingTimer->stop();
         if (status == Online) {
             statusLabel->setText("в сети");
-            statusLabel->setStyleSheet("font-size: 12px; color: #4e54c8; font-weight: bold;");
+            statusLabel->setFont(QFont("Roboto", 11, QFont::Normal));
+            statusLabel->setStyleSheet("color: #4e54c8;");
         } else {
             statusLabel->setText("был(а) недавно");
-            statusLabel->setStyleSheet("font-size: 12px; color: #888;");
+            statusLabel->setFont(QFont("Roboto", 11, QFont::Normal));
+            statusLabel->setStyleSheet("color: #888;");
         }
     }
 }
@@ -784,7 +814,8 @@ void ChatWidget::animateTyping() {
 
     // Используем фиксированную ширину или пробелы, чтобы текст не "прыгал" влево-вправо
     statusLabel->setText(QString("печатает%1").arg(dots));
-    statusLabel->setStyleSheet("font-size: 12px; color: #4e54c8; font-weight: bold;");
+    statusLabel->setFont(QFont("Roboto", 11, QFont::Normal));
+    statusLabel->setStyleSheet("color: #4e54c8;");
 }
 
 void ChatWidget::scrollToBottom() {
@@ -915,10 +946,12 @@ void ChatWidget::topBarCreate()
     nameStatusLayout->setContentsMargins(0, 10, 0, 10);
 
     QLabel *nameLabel = new QLabel("Бот-помощник");
-    nameLabel->setStyleSheet("font-weight: bold; font-size: 16px; color: #222; border:none; background:transparent;");
+    nameLabel->setFont(QFont("Roboto", 12, QFont::Medium));
+    nameLabel->setStyleSheet("color: #222; border:none; background:transparent;");
 
     statusLabel = new QLabel("был(а) недавно");
-    statusLabel->setStyleSheet("font-size: 12px; color: #888; border:none; background:transparent;");
+    statusLabel->setFont(QFont("Roboto", 10, QFont::Normal));
+    statusLabel->setStyleSheet("color: #888; border:none; background:transparent;");
 
     nameStatusLayout->addWidget(nameLabel);
     nameStatusLayout->addWidget(statusLabel);
@@ -1115,14 +1148,14 @@ void ChatWidget::onUnpinClicked() {
     auto *titleLabel = new QLabel("Открепить сообщение", card);
     titleLabel->setObjectName("unpinDialogTitle");
     titleLabel->setWordWrap(true);
-    QFont titleFont("Roboto", 20, QFont::Medium);
+    QFont titleFont("Roboto", 20, QFont::DemiBold);
     titleFont.setStyleStrategy(QFont::PreferAntialias);
     titleLabel->setFont(titleFont);
 
     auto *questionLabel = new QLabel("Хотите открепить сообщение?", card);
     questionLabel->setObjectName("unpinDialogQuestion");
     questionLabel->setWordWrap(true);
-    QFont questionFont("Roboto", 14, QFont::Light);
+    QFont questionFont("Roboto", 14, QFont::Normal);
     questionFont.setStyleStrategy(QFont::PreferAntialias);
     questionLabel->setFont(questionFont);
 
@@ -1239,69 +1272,6 @@ void ChatWidget::showEvent(QShowEvent *event) {
         scrollToBottom();
     });
 }
-
-/*void ChatWidget::resizeEvent(QResizeEvent *event) {
-
-    QWidget::resizeEvent(event);
-    updateBackgroundPattern();
-
-    int topHeight = 60;
-    int bottomHeight = 70;
-
-    // 1. Панели по краям
-    topBar->setGeometry(0, 0, width(), topHeight);
-    inputBar->setGeometry(0, height() - bottomHeight, width(), bottomHeight);
-
-    // 2. Список на все окно
-    listWidget->setGeometry(0, 0, width(), height());
-
-    // 3. Отступы содержимого (сверху и снизу), чтобы сообщения не заезжали под панели
-    // В Qt 6.8 используем padding в QSS для listWidget, так как это надежнее
-    listWidget->setStyleSheet(QString(
-        "QListWidget {"
-        "  background: transparent; border: none;"
-        "  padding-top: %1px;"
-        "  padding-bottom: %2px;"
-        "}"
-    ).arg(topHeight + 5).arg(bottomHeight + 5));
-}*/
-/*void ChatWidget::resizeEvent(QResizeEvent *event) {
-    QWidget::resizeEvent(event);
-    updateBackgroundPattern();
-
-    // 1. Список сообщений на всё окно
-    listWidget->setGeometry(0, 0, width(), height());
-
-    // 2. Верхняя панель
-    int topHeight = 60;
-    int sidePadding = 20; // Те же 20px, что у инпут-бара
-    topBar->setGeometry(0, 0, width(), topHeight);
-
-    int currentTopOffset = topHeight;
-
-    if (pinnedWidget && pinnedWidget->isVisible()) {
-        // Вычисляем ширину: ширина окна минус отступы с двух сторон
-        int pWidth = width() - (sidePadding * 2);
-
-        // Позиционируем: X = 20, Y = под топ-баром + небольшой зазор (например 5px)
-        pinnedWidget->setGeometry(sidePadding, topHeight + 5, pWidth, 50);
-
-        pinnedWidget->raise(); // Чтобы он не ушел под список
-    }
-
-    // 3. НИЖНЯЯ ПАНЕЛЬ (Инпут)
-    // Берем ТЕКУЩУЮ высоту (она может быть 70, а может 150)
-    int currentBarHeight = inputBar->height();
-    // Если по какой-то причине высота стала 0, ставим дефолт 70
-    if (currentBarHeight < 70) currentBarHeight = 70;
-
-    inputBar->setGeometry(0, height() - currentBarHeight, width(), currentBarHeight);
-    // 4. Отступы для списка (динамические!)
-    listWidget->setStyleSheet(QString(
-                                  "QListWidget { background: transparent; border: none; "
-                                  "padding-top: %1px; padding-bottom: %2px; }"
-                                  ).arg(currentTopOffset + 5).arg(currentBarHeight + 5));
-}*/
 
 void ChatWidget::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
