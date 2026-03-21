@@ -89,6 +89,7 @@ QWidget *MessageBubble::createReplyHeader(const MessageData &data) {
 
     QPushButton *previewButton = new QPushButton(data.replyPreview, replyWidget);
     previewButton->setFlat(true);
+    previewButton->setFont(QFont("Roboto", 11, QFont::Medium));
     previewButton->setCursor(data.replyClickable ? Qt::PointingHandCursor : Qt::ArrowCursor);
     previewButton->setEnabled(data.replyClickable);
     previewButton->setStyleSheet(
@@ -97,12 +98,10 @@ QWidget *MessageBubble::createReplyHeader(const MessageData &data) {
         "  border: none;"
         "  background: transparent;"
         "  color: #3942c0;"
-        "  font-size: 12px;"
-        "  font-weight: 600;"
         "  padding: 0;"
         "}"
         "QPushButton:disabled { color: #3942c0; }"
-        "QPushButton:hover:!disabled { color: #2e35a8; }"
+        "QPushButton:hover:!disabled { color: #2e05a8; }"
         );
     previewButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     connect(previewButton, &QPushButton::clicked, this, &MessageBubble::replyClicked);

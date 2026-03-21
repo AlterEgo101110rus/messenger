@@ -125,7 +125,7 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     QVBoxLayout *inputBarLayout = new QVBoxLayout(inputBar);
     inputBarLayout->setContentsMargins(20, 8, 20, 16);
-    inputBarLayout->setSpacing(18);
+    inputBarLayout->setSpacing(22);
 
     replyPreviewBar = new QWidget(inputBar);
     replyPreviewBar->setFixedHeight(48);
@@ -140,7 +140,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     replyPreviewLayout->setSpacing(10);
 
     QWidget *replyAccent = new QWidget(replyPreviewBar);
-    replyAccent->setFixedSize(3, 28);
+    replyAccent->setFixedSize(3, 30);
     replyAccent->setStyleSheet("background: #4e54c8; border-radius: 1px;");
     replyPreviewLayout->addWidget(replyAccent, 0, Qt::AlignVCenter);
 
@@ -151,11 +151,13 @@ ChatWidget::ChatWidget(QWidget *parent)
     replyTextLayout->setSpacing(0);
 
     QLabel *replyTitleLabel = new QLabel("Ответ на сообщение", replyTextWidget);
-    replyTitleLabel->setStyleSheet("color: rgba(0,0,0,0.48); font-size: 11px; font-weight: 700; background: transparent;");
+    replyTitleLabel->setFont(QFont("Roboto", 10, QFont::Medium));
+    replyTitleLabel->setStyleSheet("color: rgba(0,0,0,0.48); background: transparent;");
     replyTextLayout->addWidget(replyTitleLabel);
 
     replyPreviewButton = new QPushButton(replyTextWidget);
     replyPreviewButton->setFlat(true);
+    replyPreviewButton->setFont(QFont("Roboto", 11, QFont::Normal));
     replyPreviewButton->setCursor(Qt::PointingHandCursor);
     replyPreviewButton->setStyleSheet(
         "QPushButton {"
@@ -163,11 +165,9 @@ ChatWidget::ChatWidget(QWidget *parent)
         "  border: none;"
         "  background: transparent;"
         "  color: #3942c0;"
-        "  font-size: 12px;"
-        "  font-weight: 600;"
         "  padding: 0;"
         "}"
-        "QPushButton:hover { color: #2f36aa; }"
+        "QPushButton:hover { color: #2e05a8; }"
         );
     replyTextLayout->addWidget(replyPreviewButton);
     replyPreviewLayout->addWidget(replyTextWidget, 1);
@@ -175,8 +175,8 @@ ChatWidget::ChatWidget(QWidget *parent)
     replyCancelButton = new QPushButton(replyPreviewBar);
     replyCancelButton->setFixedSize(28, 28);
     replyCancelButton->setCursor(Qt::PointingHandCursor);
-    replyCancelButton->setIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#888"), 14)));
-    replyCancelButton->setIconSize(QSize(14, 14));
+    replyCancelButton->setIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#888"), 24)));
+    replyCancelButton->setIconSize(QSize(24, 24));
     replyCancelButton->setStyleSheet(
         "QPushButton { border: none; background: transparent; border-radius: 14px; }"
         "QPushButton:hover { background: rgba(0,0,0,0.05); }"
@@ -316,8 +316,8 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     pinnedWidget = new PinnedMessageWidget("Закрепленное сообщение", this);
     // Настраиваем иконки через наш метод
-    pinnedWidget->setPinIcon(getColoredIcon(Icons::Pin, QColor("#4e54c8"), 18));
-    pinnedWidget->setCloseBtnIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#888"), 16)));
+    pinnedWidget->setPinIcon(getColoredIcon(Icons::Pin, QColor("#4e54c8"), 20));
+    pinnedWidget->setCloseBtnIcon(QIcon(getColoredIcon(Icons::Cross, QColor("#888"), 24)));
 
     // Соединяем сигналы
     connect(pinnedWidget, &PinnedMessageWidget::unpinRequested, this, &ChatWidget::onUnpinClicked);
@@ -376,7 +376,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     // Сразу прокручиваем вниз, чтобы их увидели
     scrollToBottom();
 
-    connect(messageEdit, &QTextEdit::textChanged, this, [this, messageEdit]() {
+    connect(messageEdit, &QTextEdit::textChanged, this, [this]() {
         // Считаем высоту текста
         int docHeight = messageEdit->document()->size().height();
         int newEditHeight = qBound(35, docHeight + 8, 150);
@@ -401,7 +401,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     });
 
     // 2. Основная логика отправки в лямбда-выражении
-    connect(sendButton, &QPushButton::clicked, this, [this, messageEdit]() {
+    connect(sendButton, &QPushButton::clicked, this, [this]() {
 
         // Используем toPlainText() вместо text()
         QString text = messageEdit->toPlainText().trimmed();
@@ -650,7 +650,7 @@ void ChatWidget::showContextMenu(const QPoint &pos) {
 }
 
 int ChatWidget::replyPreviewHeight() const {
-    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 58 : 0;
+    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 68 : 0;
 }
 
 QString ChatWidget::buildMessagePreview(const MessageBubble::MessageData &data) const {
@@ -1115,14 +1115,14 @@ void ChatWidget::onUnpinClicked() {
     auto *titleLabel = new QLabel("Открепить сообщение", card);
     titleLabel->setObjectName("unpinDialogTitle");
     titleLabel->setWordWrap(true);
-    QFont titleFont("Roboto", 20, QFont::Bold);
+    QFont titleFont("Roboto", 20, QFont::Medium);
     titleFont.setStyleStrategy(QFont::PreferAntialias);
     titleLabel->setFont(titleFont);
 
     auto *questionLabel = new QLabel("Хотите открепить сообщение?", card);
     questionLabel->setObjectName("unpinDialogQuestion");
     questionLabel->setWordWrap(true);
-    QFont questionFont("Roboto", 14, QFont::Normal);
+    QFont questionFont("Roboto", 14, QFont::Light);
     questionFont.setStyleStrategy(QFont::PreferAntialias);
     questionLabel->setFont(questionFont);
 
@@ -1134,7 +1134,7 @@ void ChatWidget::onUnpinClicked() {
     QPushButton *yes = new QPushButton("Открепить", card);
     yes->setObjectName("unpinConfirmButton");
 
-    QFont buttonFont("Roboto", 15, QFont::DemiBold);
+    QFont buttonFont("Roboto", 15, QFont::Medium);
     buttonFont.setStyleStrategy(QFont::PreferAntialias);
     cancel->setFont(buttonFont);
     yes->setFont(buttonFont);

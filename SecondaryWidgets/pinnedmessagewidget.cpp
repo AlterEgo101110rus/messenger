@@ -47,6 +47,7 @@ PinnedMessageWidget::PinnedMessageWidget(const QString &text, QWidget *parent)
     m_closeBtn = new QPushButton(this);
     m_closeBtn->setFixedSize(30, 30);
     m_closeBtn->setCursor(Qt::PointingHandCursor);
+    m_closeBtn->setIconSize(QSize(24, 24));
     m_closeBtn->setStyleSheet(
         "QPushButton { border: none; background: transparent; border-radius: 15px; }"
         "QPushButton:hover { background: #f5f5f5; }"
