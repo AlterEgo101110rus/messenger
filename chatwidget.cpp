@@ -18,7 +18,6 @@
 #include <QScrollBar>
 #include <QListWidgetItem>
 #include <QDialog>
-#include <QDebug>
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
 #include <QGraphicsOpacityEffect>
@@ -679,7 +678,7 @@ void ChatWidget::showContextMenu(const QPoint &pos) {
 }
 
 int ChatWidget::replyPreviewHeight() const {
-    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 70 : 0;
+    return (replyPreviewBar && replyPreviewBar->isVisible()) ? 68 : 0;
 }
 
 QString ChatWidget::buildMessagePreview(const MessageBubble::MessageData &data) const {
